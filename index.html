@@ -1,48 +1,104 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>QR to Google Sheets</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Scanner Pro</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
-        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; }
-        #reader { width: 500px; border: 1px solid #ccc; margin-top: 20px; }
-        #status { margin-top: 20px; color: green; font-weight: bold; }
+        body { font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; background-color: #f0f2f5; padding: 20px; }
+        #reader { width: 100%; max-width: 450px; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.1); background: white; }
+        #status { margin: 20px 0; padding: 12px; border-radius: 8px; font-weight: bold; min-height: 24px; transition: 0.3s; }
+        
+        .history-container { width: 100%; max-width: 450px; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        
+        table { width: 100%; border-collapse: collapse; }
+        th, td { text-align: left; padding: 12px; border-bottom: 1px solid #eee; }
+        th { background-color: #f8f9fa; color: #555; text-transform: uppercase; font-size: 11px; letter-spacing: 1px; }
+        
+        .btn-clear { background: #ff4757; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; transition: 0.2s; }
+        .btn-clear:hover { background: #ff6b81; }
+        .timestamp { color: #888; font-size: 12px; }
     </style>
 </head>
 <body>
-    <h2>Scan QR Code</h2>
+
+    <h2>Inventory Scanner</h2>
     <div id="reader"></div>
-    <div id="status"></div>
+    <div id="status">Ready to scan...</div>
+
+    <div class="history-container">
+        <div class="header-row">
+            <h3>Recent Scans</h3>
+            <button class="btn-clear" onclick="clearHistory()">Clear List</button>
+        </div>
+        <table id="historyTable">
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Result</th>
+                </tr>
+            </thead>
+            <tbody id="historyBody">
+                </tbody>
+        </table>
+    </div>
 
     <script>
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwWrobt6fYzSO608tH17DRtUou8ECZbyKzU0J4VMcZlfVRtTDr4XeEgYCkBOQIESJ3N7A/exec";
+        // 1. UPDATE YOUR URL HERE
+        const SCRIPT_URL = "YOUR_GOOGLE_SCRIPT_URL";
 
-       function onScanSuccess(decodedText) {
+        // 2. Audio Context for Beeps (to avoid needing external files)
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playNote(freq, type, duration) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.value = freq;
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
+            osc.stop(audioCtx.currentTime + duration);
+        }
+
+        function onScanSuccess(decodedText) {
             const statusEl = document.getElementById('status');
-            statusEl.innerText = "⏳ Checking...";
-            statusEl.style.color = "#ff9800";
+            statusEl.innerText = "⏳ Processing...";
+            statusEl.style.color = "#ffa500";
 
             fetch(SCRIPT_URL, {
                 method: "POST",
-                body: JSON.stringify({ qrCode: decodedText }),
-                // Note: We removed 'no-cors' to read the response from Google
-                // If you face issues, we can revert to a simpler local check
-            }).then(response => response.text()).then(result => {
+                body: JSON.stringify({ qrCode: decodedText })
+            }).then(res => res.text()).then(result => {
                 if (result === "Duplicate") {
-                    statusEl.innerText = "⚠️ Already Scanned!";
-                    statusEl.style.color = "#dc3545";
+                    statusEl.innerText = "⚠️ Duplicate Found";
+                    statusEl.style.color = "#ff4757";
+                    playNote(150, 'sawtooth', 0.3); // Low buzz for duplicate
                 } else {
-                    statusEl.innerText = "✅ Successfully Logged!";
-                    statusEl.style.color = "#4caf50";
+                    statusEl.innerText = "✅ Logged Successfully";
+                    statusEl.style.color = "#2ed573";
+                    playNote(880, 'sine', 0.2); // High beep for success
                     addToHistory(decodedText);
                 }
-            }).catch(err => {
-                // If Google blocks the response (CORS), we'll assume success 
-                // but you should check your sheet!
-                statusEl.innerText = "✅ Sent to Sheet";
-                statusEl.style.color = "#4caf50";
+            }).catch(e => {
+                statusEl.innerText = "✅ Sent (Check Sheet)";
+                statusEl.style.color = "#2ed573";
                 addToHistory(decodedText);
             });
+        }
+
+        function addToHistory(text) {
+            const tableBody = document.getElementById('historyBody');
+            const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const row = tableBody.insertRow(0);
+            row.innerHTML = `<td class="timestamp">${now}</td><td>${text}</td>`;
+        }
+
+        function clearHistory() {
+            document.getElementById('historyBody').innerHTML = "";
+            document.getElementById('status').innerText = "History cleared.";
         }
 
         let html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
