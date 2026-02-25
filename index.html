@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>QR to Google Sheets</title>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; }
+        #reader { width: 500px; border: 1px solid #ccc; margin-top: 20px; }
+        #status { margin-top: 20px; color: green; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h2>Scan QR Code</h2>
+    <div id="reader"></div>
+    <div id="status"></div>
+
+    <script>
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby7C6crVXmy5lMPFpLWG5roFHey-GA0kNqITK9Exfbckhj6i7LXCDjgmkyMBb69sRQdvg/exec";
+
+        function onScanSuccess(decodedText) {
+            document.getElementById('status').innerText = "Sending to Sheet...";
+            
+            // Send data to Google Sheets
+            fetch(SCRIPT_URL, {
+                method: "POST",
+                body: JSON.stringify({ qrCode: decodedText }),
+                mode: "no-cors" // Essential for Google Apps Script cross-domain
+            }).then(() => {
+                document.getElementById('status').innerText = "Success: " + decodedText;
+                // Optional: Pause for 2 seconds before allowing next scan
+            });
+        }
+
+        let html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
+        html5QrcodeScanner.render(onScanSuccess);
+    </script>
+</body>
+</html>
