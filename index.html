@@ -3,15 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QR Scanner & Generator Pro</title>
+    <title>QR Scanner Pro</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         body { font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; background-color: #f0f2f5; padding: 20px; }
         #reader { width: 100%; max-width: 450px; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.1); background: white; }
         #status { margin: 20px 0; padding: 12px; border-radius: 8px; font-weight: bold; min-height: 24px; transition: 0.3s; }
         
-        .container { width: 100%; max-width: 450px; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .history-container { width: 100%; max-width: 450px; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
         .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
         
         table { width: 100%; border-collapse: collapse; }
@@ -20,30 +19,16 @@
         
         .btn-clear { background: #ff4757; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; transition: 0.2s; }
         .btn-clear:hover { background: #ff6b81; }
-        
-        .btn-gen { background: #007bff; color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 10px; font-weight: bold; }
-        .btn-gen:hover { background: #0056b3; }
-        
-        input[type="text"] { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
-        #qrcode-display { margin-top: 15px; display: flex; justify-content: center; background: #fff; padding: 10px; }
         .timestamp { color: #888; font-size: 12px; }
     </style>
 </head>
 <body>
 
-    <h2>QR Scanner & Generator</h2>
-
+    <h2>Inventory Scanner</h2>
     <div id="reader"></div>
     <div id="status">Ready to scan...</div>
 
-    <div class="container">
-        <h3>Create Name QR</h3>
-        <input type="text" id="nameInput" placeholder="Enter Full Name">
-        <button class="btn-gen" onclick="generateQR()">Generate QR Code</button>
-        <div id="qrcode-display"></div>
-    </div>
-
-    <div class="container">
+    <div class="history-container">
         <div class="header-row">
             <h3>Recent Scans</h3>
             <button class="btn-clear" onclick="clearHistory()">Clear List</button>
@@ -55,15 +40,16 @@
                     <th>Result</th>
                 </tr>
             </thead>
-            <tbody id="historyBody"></tbody>
+            <tbody id="historyBody">
+                </tbody>
         </table>
     </div>
 
     <script>
-        // *** DON'T FORGET TO PASTE YOUR URL HERE ***
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzLQMRCw4xACtXm_Rm9OgKAvtIPry3TqE_tgy7x2xchSB8qMAS-sQNYfFQiTLDt0QvRZA/exec";
+        // 1. UPDATE YOUR URL HERE
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzzFODsrlH2WpA5VykcHxzZcaAnq1OLBlqvkvkAxknn/dev";
 
-        // Audio Feedback
+        // 2. Audio Context for Beeps (to avoid needing external files)
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         function playNote(freq, type, duration) {
             const osc = audioCtx.createOscillator();
@@ -75,25 +61,6 @@
             osc.start();
             gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
             osc.stop(audioCtx.currentTime + duration);
-        }
-
-        // Generate QR for Name
-        function generateQR() {
-            const name = document.getElementById("nameInput").value;
-            const display = document.getElementById("qrcode-display");
-            display.innerHTML = ""; 
-            if(name.trim() !== "") {
-                new QRCode(display, {
-                    text: name,
-                    width: 160,
-                    height: 160,
-                    colorDark : "#000000",
-                    colorLight : "#ffffff",
-                    correctLevel : QRCode.CorrectLevel.H
-                });
-            } else {
-                alert("Please enter a name first!");
-            }
         }
 
         function onScanSuccess(decodedText) {
@@ -108,11 +75,11 @@
                 if (result === "Duplicate") {
                     statusEl.innerText = "⚠️ Duplicate Found";
                     statusEl.style.color = "#ff4757";
-                    playNote(150, 'sawtooth', 0.3); 
+                    playNote(150, 'sawtooth', 0.3); // Low buzz for duplicate
                 } else {
                     statusEl.innerText = "✅ Logged Successfully";
                     statusEl.style.color = "#2ed573";
-                    playNote(880, 'sine', 0.2); 
+                    playNote(880, 'sine', 0.2); // High beep for success
                     addToHistory(decodedText);
                 }
             }).catch(e => {
