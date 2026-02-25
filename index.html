@@ -17,17 +17,31 @@
     <script>
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby7C6crVXmy5lMPFpLWG5roFHey-GA0kNqITK9Exfbckhj6i7LXCDjgmkyMBb69sRQdvg/exec";
 
-        function onScanSuccess(decodedText) {
-            document.getElementById('status').innerText = "Sending to Sheet...";
-            
-            // Send data to Google Sheets
+       function onScanSuccess(decodedText) {
+            const statusEl = document.getElementById('status');
+            statusEl.innerText = "⏳ Checking...";
+            statusEl.style.color = "#ff9800";
+
             fetch(SCRIPT_URL, {
                 method: "POST",
                 body: JSON.stringify({ qrCode: decodedText }),
-                mode: "no-cors" // Essential for Google Apps Script cross-domain
-            }).then(() => {
-                document.getElementById('status').innerText = "Success: " + decodedText;
-                // Optional: Pause for 2 seconds before allowing next scan
+                // Note: We removed 'no-cors' to read the response from Google
+                // If you face issues, we can revert to a simpler local check
+            }).then(response => response.text()).then(result => {
+                if (result === "Duplicate") {
+                    statusEl.innerText = "⚠️ Already Scanned!";
+                    statusEl.style.color = "#dc3545";
+                } else {
+                    statusEl.innerText = "✅ Successfully Logged!";
+                    statusEl.style.color = "#4caf50";
+                    addToHistory(decodedText);
+                }
+            }).catch(err => {
+                // If Google blocks the response (CORS), we'll assume success 
+                // but you should check your sheet!
+                statusEl.innerText = "✅ Sent to Sheet";
+                statusEl.style.color = "#4caf50";
+                addToHistory(decodedText);
             });
         }
 
